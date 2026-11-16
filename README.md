@@ -106,8 +106,8 @@ Each topic uses two text-model stages. First, a web-search call selects signific
 
 Configuration
 
-- `news_fetch_frequency_minutes` defaults to `30` and defines the lookback window in minutes. A value of `60` gathers the last hour. There is no separate lookback setting.
-- `topics[].news_fetch_frequency_minutes` optionally overrides the global value for that topic.
+- `news_lookback_duration_minutes` defaults to `240` (four hours) and defines the lookback window in minutes. A value of `60` gathers the last hour. There is no separate lookback setting.
+- `topics[].news_lookback_duration_minutes` optionally overrides the global value for that topic.
 - Each invocation performs one fetch/write cycle for the selected topics. This parameter does not start a recurring background process.
 - `style_instructions` controls the shared article voice, structure and length.
 - `topics[].instructions` gives instructions specific to each topic.

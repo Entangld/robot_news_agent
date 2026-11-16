@@ -58,9 +58,9 @@ def target_settings(target_name):
     return base, key
 
 
-def fetch_frequency_minutes(config, topic=None):
-    minutes = (topic or {}).get("news_fetch_frequency_minutes",
-                                config.get("news_fetch_frequency_minutes", 30))
+def lookback_duration_minutes(config, topic=None):
+    minutes = (topic or {}).get("news_lookback_duration_minutes",
+                                config.get("news_lookback_duration_minutes", 240))
     if isinstance(minutes, bool) or not isinstance(minutes, (int, float)) or not 0 < minutes <= 525600:
-        raise ValueError("news_fetch_frequency_minutes must be positive and no more than one year")
+        raise ValueError("news_lookback_duration_minutes must be positive and no more than 525600 minutes (one year)")
     return minutes

@@ -2,7 +2,7 @@
 """Check configured environment references and required credentials without API calls."""
 import argparse
 import sys
-from agent_config import DEFAULT_CONFIG, load_config, model_key, target_settings, fetch_frequency_minutes
+from agent_config import DEFAULT_CONFIG, load_config, model_key, target_settings, lookback_duration_minutes
 from robot_news import tls_context
 
 
@@ -33,7 +33,7 @@ def check(config, target_name):
             errors.append("Each topic requires a configured model")
         providers.add(provider)
         try:
-            fetch_frequency_minutes(config, topic)
+            lookback_duration_minutes(config, topic)
         except ValueError as exc:
             errors.append(str(exc))
     for provider in sorted(providers, key=str):

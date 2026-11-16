@@ -31,5 +31,5 @@
     "anthropic": "ANTHROPIC_API_KEY",
     "gemini": "GEMINI_API_KEY"
   },
-  "news_fetch_frequency_minutes": 240
+  "news_lookback_duration_minutes": 240
 }

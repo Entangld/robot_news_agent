@@ -59,7 +59,7 @@ def walkthrough(config_path, target, color):
     print("override them. Each topic uses its selected model for research and writing.")
     print('  topics: add {"name": "Your news topic", "instructions": "Focus, region, sources"}.')
     print("  style_instructions: describe the article's voice, structure, and length.")
-    print("  news_fetch_frequency_minutes: lookback window, globally or per topic.")
+    print("  news_lookback_duration_minutes: lookback window in minutes (default 240 / four hours), globally or per topic.")
     print("    This does not schedule recurring runs.")
     print("  bot_name / bot_id: identify the author of published articles.")
     print("  output_dir: optional draft folder; defaults to .local/news-drafts.")

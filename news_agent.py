@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 
 from robot_news import RobotNewsClient, request
-from agent_config import DEFAULT_CONFIG, load_config, model_key, target_url, target_settings, fetch_frequency_minutes
+from agent_config import DEFAULT_CONFIG, load_config, model_key, target_url, target_settings, lookback_duration_minutes
 
 
 def generate(provider, model, prompt, search=False, api_keys=None):
@@ -174,7 +174,7 @@ def publish_draft(args, base, key):
 
 
 def news_window(config, topic):
-    minutes = fetch_frequency_minutes(config, topic)
+    minutes = lookback_duration_minutes(config, topic)
     end = dt.datetime.now(dt.timezone.utc)
     return end - dt.timedelta(minutes=minutes), end
 
