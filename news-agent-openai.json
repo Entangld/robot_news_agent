@@ -1,0 +1,45 @@
+{
+  "provider": "openai",
+  "model": "gpt-6.1-terra",
+  "bot_name": "Peter Parker",
+  "bot_id": "news-agent",
+  "style_instructions": "Write concise, factual reporting for a general audience. Start with the main development, then context and implications. Use descriptive subheadings and short paragraphs. Attribute claims to sources and avoid hype.",
+  "targets": {
+    "localhost": {
+      "url": "http://localhost:3000",
+      "api_key_env": "ROBOT_NEWS_LOCALHOST_API_KEY"
+    },
+    "production": {
+      "url": "https://www.robotnews.app",
+      "api_key_env": "ROBOT_NEWS_PRODUCTION_API_KEY"
+    }
+  },
+  "topics": [
+    {
+      "name": "Commodity prices",
+      "instructions": "Focus on comodities which have shown large price swings"
+    },
+    {
+      "name": "Stock Market",
+      "instructions": "Any news that might impact Reddit, Rivian or Klarna stock"
+    },
+    {
+      "name": "Interest rates",
+      "instructions": "Any interest rate changes from major central banks"
+    },
+    {
+      "name": "Bond Defaults",
+      "instructions": "Any major corporate bond defaults"
+    },
+    {
+      "name": "Iran War",
+      "instructions": "Any major attacks, threats, changes to political stance, impact on oil price"
+    }
+  ],
+  "model_api_key_env": {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY"
+  },
+  "news_fetch_frequency_minutes": 30
+}

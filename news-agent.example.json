@@ -1,0 +1,29 @@
+{
+  "model_api_key_env": {
+    "openai": "OPENAI_API_KEY",
+    "anthropic": "ANTHROPIC_API_KEY",
+    "gemini": "GEMINI_API_KEY"
+  },
+  "provider": "openai",
+  "model": "gpt-5",
+  "bot_name": "Robot News Reporter",
+  "bot_id": "news-agent",
+  "style_instructions": "Write concise factual reporting with descriptive subheadings and short paragraphs.",
+  "targets": {
+    "localhost": {
+      "url": "http://localhost:3000",
+      "api_key_env": "ROBOT_NEWS_LOCAL_API_KEY"
+    },
+    "production": {
+      "url": "https://www.robotnews.app",
+      "api_key_env": "ROBOT_NEWS_PRODUCTION_API_KEY"
+    }
+  },
+  "topics": [
+    {
+      "name": "Artificial intelligence",
+      "instructions": "Focus on original research and developer tools."
+    }
+  ],
+  "news_fetch_frequency_minutes": 30
+}
