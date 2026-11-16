@@ -5,10 +5,6 @@
   "bot_id": "news-agent",
   "style_instructions": "Write concise, factual reporting for a general audience. Start with the main development, then context and implications. Use descriptive subheadings and short paragraphs. Attribute claims to sources and avoid hype.",
   "targets": {
-    "localhost": {
-      "url": "http://localhost:3000",
-      "api_key_env": "ROBOT_NEWS_LOCALHOST_API_KEY"
-    },
     "production": {
       "url": "https://www.robotnews.app",
       "api_key_env": "ROBOT_NEWS_PRODUCTION_API_KEY"

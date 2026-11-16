@@ -3,7 +3,11 @@ import json
 import os
 from pathlib import Path
 import re
-import urllib.parse
+from robot_news import PRODUCTION_URL
+
+DEFAULT_CONFIG = str(Path(__file__).resolve().with_name("config.json"))
+
+TARGET_URLS = {"localhost": "http://localhost:3000", "production": PRODUCTION_URL}
 
 MODEL_KEY_ENVS = {
     "openai": "OPENAI_API_KEY",
@@ -31,9 +35,6 @@ def load_config(path):
         raise ValueError("Replace api_keys with model_api_key_env references")
     if not isinstance(config.get("model_api_key_env", {}), dict):
         raise ValueError("model_api_key_env must map providers to environment variable names")
-    for target in config.get("targets", {}).values():
-        if "api_key" in target:
-            raise ValueError("Replace target api_key with api_key_env")
     return config
 
 
@@ -43,15 +44,17 @@ def model_key(provider, references):
     return environment_value((references or {}).get(provider, MODEL_KEY_ENVS[provider]))
 
 
-def target_settings(config, target_name):
-    target = config["targets"][target_name]
-    base = target["url"].rstrip("/")
-    url = urllib.parse.urlsplit(base)
-    if url.scheme not in ("http", "https") or not url.hostname or url.username or url.password or url.query or url.fragment:
-        raise ValueError(f"Invalid URL for target {target_name}")
-    key = environment_value(target["api_key_env"])
+def target_url(target_name):
+    if target_name not in TARGET_URLS:
+        raise ValueError(f"Unknown publishing target: {target_name}")
+    return TARGET_URLS[target_name]
+
+
+def target_settings(target_name):
+    base = target_url(target_name)
+    key = environment_value("ROBOT_NEWS_API_KEY")
     if not re.fullmatch(r"wob_[0-9a-fA-F]{64}", key):
-        raise ValueError(f"{target['api_key_env']} must contain a Robot News page publishing key")
+        raise ValueError("ROBOT_NEWS_API_KEY must contain a Robot News page publishing key")
     return base, key
 
 

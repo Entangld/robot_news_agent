@@ -11,7 +11,7 @@ import uuid
 from pathlib import Path
 
 from robot_news import RobotNewsClient, request
-from agent_config import load_config, model_key, target_settings, fetch_frequency_minutes
+from agent_config import DEFAULT_CONFIG, load_config, model_key, target_url, target_settings, fetch_frequency_minutes
 
 
 def generate(provider, model, prompt, search=False, api_keys=None):
@@ -214,9 +214,9 @@ def run(args):
     config = load_config(args.config)
     api_keys = config.get("model_api_key_env", {})
     if args.publish:
-        base, key = target_settings(config, args.target)
+        base, key = target_settings(args.target)
     else:
-        base = config["targets"][args.target]["url"].rstrip("/")
+        base = target_url(args.target)
         key = None
     if args.draft:
         if not args.publish:
@@ -296,8 +296,8 @@ Do not include imageUrl, Markdown fences or HTML. Use plain text paragraphs.
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="scripts/news-agent.example.json")
-    parser.add_argument("--target", choices=["localhost", "production"], required=True)
+    parser.add_argument("--config", default=DEFAULT_CONFIG, help="Agent config file (default: config.json beside this script)")
+    parser.add_argument("--target", choices=["localhost", "production"], default="production", help="Publishing target (default: production)")
     parser.add_argument("--draft", help="Publish an existing draft JSON file without generating content")
     parser.add_argument("--topic", action="append", help="Exact configured topic name; repeat to select several")
     parser.add_argument("--provider", choices=["openai", "anthropic", "gemini"])

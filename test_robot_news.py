@@ -3,17 +3,18 @@
 import argparse
 import json
 import sys
-from agent_config import load_config, target_settings
+from agent_config import DEFAULT_CONFIG, load_config, target_settings
 from robot_news import RobotNewsClient
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--config", default="scripts/news-agent.example.json")
-    parser.add_argument("--target", choices=["localhost", "production"], required=True)
+    parser.add_argument("--config", default=DEFAULT_CONFIG, help="Agent config file (default: config.json beside this script)")
+    parser.add_argument("--target", choices=["localhost", "production"], default="production", help="Publishing target (default: production)")
     args = parser.parse_args()
     try:
-        base, key = target_settings(load_config(args.config), args.target)
+        load_config(args.config)
+        base, key = target_settings(args.target)
         response = RobotNewsClient(key, base_url=base).publish_standard_message()
     except (ValueError, KeyError, TypeError, RuntimeError, OSError) as exc:
         print(f"Connection test failed: {exc}", file=sys.stderr)

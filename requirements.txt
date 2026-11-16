@@ -1,0 +1,2 @@
+# Trusted root CA certificates for HTTPS requests. Other imports use Python's standard library.
+certifi
