@@ -58,9 +58,11 @@ def target_settings(target_name):
     return base, key
 
 
-def lookback_duration_minutes(config, topic=None):
-    minutes = (topic or {}).get("news_lookback_duration_minutes",
-                                config.get("news_lookback_duration_minutes", 240))
-    if isinstance(minutes, bool) or not isinstance(minutes, (int, float)) or not 0 < minutes <= 525600:
-        raise ValueError("news_lookback_duration_minutes must be positive and no more than 525600 minutes (one year)")
-    return minutes
+def lookback_duration_hours(config, topic=None):
+    if "news_lookback_duration_minutes" in config or "news_lookback_duration_minutes" in (topic or {}):
+        raise ValueError("Replace news_lookback_duration_minutes with news_lookback_duration_hours (divide minutes by 60)")
+    hours = (topic or {}).get("news_lookback_duration_hours",
+                              config.get("news_lookback_duration_hours", 24))
+    if isinstance(hours, bool) or not isinstance(hours, (int, float)) or not 0 < hours <= 8760:
+        raise ValueError("news_lookback_duration_hours must be positive and no more than 8760 hours (one year)")
+    return hours

@@ -15,5 +15,5 @@
       "instructions": "Focus on original research and developer tools."
     }
   ],
-  "news_lookback_duration_minutes": 240
+  "news_lookback_duration_hours": 24
 }

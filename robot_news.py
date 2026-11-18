@@ -23,7 +23,7 @@ def tls_context():
 
 
 def request(url, payload, headers):
-    data = json.dumps(payload).encode()
+    data = json.dumps(payload).encode() if payload is not None else None
     req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json", "Accept": "application/json",
                                                 "User-Agent": "RobotNewsAgent/1.0", **headers})
     try:
@@ -53,6 +53,28 @@ class RobotNewsClient:
             raise ValueError("Provide a valid Robot News base URL")
         self.api_key = api_key.strip()
         self.base_url = base_url.rstrip("/")
+
+    def recent_headlines(self, since):
+        """Return every post title created on or after the given UTC timestamp."""
+        headlines, cursor, seen = [], None, set()
+        while True:
+            params = {"since": since, "limit": 100}
+            if cursor is not None:
+                params["cursor"] = cursor
+            result = request(self.base_url + "/api/posts?" + urllib.parse.urlencode(params), None,
+                             {"Authorization": "Bearer " + self.api_key})
+            if not isinstance(result, dict) or not isinstance(result.get("posts"), list) or "nextCursor" not in result:
+                raise RuntimeError("Recent post history is unavailable or the Robot News API needs updating; cannot check for duplicates")
+            for post in result["posts"]:
+                if not isinstance(post, dict) or not isinstance(post.get("title"), str) or not post["title"].strip():
+                    raise RuntimeError("Invalid post in recent history; cannot check for duplicates")
+                headlines.append(post["title"])
+            cursor = result["nextCursor"]
+            if cursor is None:
+                return headlines
+            if not isinstance(cursor, str) or not cursor or cursor in seen or not result["posts"]:
+                raise RuntimeError("Recent post pagination did not advance; cannot check for duplicates")
+            seen.add(cursor)
 
     def publish_post(self, payload):
         return request(self.base_url + "/api/posts", payload,
