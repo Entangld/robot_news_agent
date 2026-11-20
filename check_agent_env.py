@@ -2,7 +2,7 @@
 """Check configured environment references and required credentials without API calls."""
 import argparse
 import sys
-from agent_config import DEFAULT_CONFIG, load_config, model_key, target_settings, lookback_duration_hours
+from agent_config import DEFAULT_CONFIG, load_config, model_key, target_settings
 from robot_news import tls_context
 
 
@@ -21,27 +21,14 @@ def check(config, target_name):
             print("OK: trusted TLS certificates loaded")
     except (ValueError, OSError) as exc:
         errors.append(f"Cannot load trusted TLS certificates: {exc}")
-    references = config.get("model_api_key_env", {})
-    providers = set()
-    topics = config.get("topics", [])
-    if not isinstance(topics, list) or not topics:
-        errors.append("Configure at least one news topic")
-        topics = []
-    for topic in topics:
-        provider = topic.get("provider", config.get("provider"))
-        if not topic.get("model", config.get("model")):
-            errors.append("Each topic requires a configured model")
-        providers.add(provider)
-        try:
-            lookback_duration_hours(config, topic)
-        except ValueError as exc:
-            errors.append(str(exc))
-    for provider in sorted(providers, key=str):
-        try:
-            model_key(provider, references)
-            print(f"OK: {provider} credential configured")
-        except (ValueError, KeyError, TypeError) as exc:
-            errors.append(str(exc))
+    provider = config.get("provider")
+    if not config.get("model"):
+        errors.append("Configure a model in config.json.")
+    try:
+        model_key(provider, config.get("model_api_key_env", {}))
+        print(f"OK: {provider} credential configured")
+    except (ValueError, KeyError, TypeError) as exc:
+        errors.append(str(exc))
     return errors
 
 

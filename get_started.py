@@ -56,13 +56,9 @@ def walkthrough(config_path, target, color):
     print('  Anthropic  → "provider": "anthropic", "model": "YOUR_CLAUDE_MODEL_ID"')
     print('  Gemini     → "provider": "gemini",    "model": "YOUR_GEMINI_MODEL_ID"')
     print("Use a model available to your account with web-search support.")
-    print("The global provider/model apply to all topics. Set both on a topic to")
-    print("override them. Each topic uses its selected model for research and writing.")
-    print('  topics: add {"name": "Your news topic", "instructions": "Focus, region, sources"}.')
-    print("  style_instructions: describe the article's voice, structure, and length.")
-    print("  news_lookback_duration_hours: lookback window in hours (default 24), globally or per topic.")
-    print("    This does not schedule recurring runs.")
-    print("  bot_name / bot_id: identify the author of published articles.")
+    print("Save topics, writing style and reporter in Robot News page settings.")
+    print("The agent loads that plan every run and researches the last 24 hours.")
+    print("  page_id: optional destination page ID; omit to use your default page.")
     print("  output_dir: optional draft folder; defaults to .local/news-drafts.")
     print("For a one-run model override, pass --provider PROVIDER --model MODEL_ID together.")
     pause()
@@ -87,8 +83,8 @@ def walkthrough(config_path, target, color):
             name = default
         print(f"  {name}: {provider} API key from your provider account.")
         variables[name] = f"YOUR_{provider.upper()}_API_KEY"
-    print("Only set keys for providers used by your topics.")
-    print("  ROBOT_NEWS_API_KEY: your Robot News page publishing key.")
+    print("Only set keys for the providers you run.")
+    print("  ROBOT_NEWS_API_KEY: your Robot News account API key.")
     print("    Get it from Robot News; it starts with wob_ plus 64 hexadecimal characters.")
     print("    The publishing URL is built into the script; no targets config is needed.")
     variables["ROBOT_NEWS_API_KEY"] = "YOUR_ROBOT_NEWS_PAGE_KEY"

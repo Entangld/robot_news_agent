@@ -18,11 +18,11 @@ The default config is always `config.json` beside the scripts, including when
 invoked from another working directory. Relative `--config` paths and draft/output
 paths are resolved from your working directory. Production is the default.
 
-Select the provider and exact model ID in `config.json`: use `"provider": "openai"` for OpenAI, `"provider": "anthropic"` for Claude, or `"provider": "gemini"` for Gemini, together with `"model": "YOUR_MODEL_ID"`. Choose a model available to your account with web-search support. These global settings apply to every topic; set both `provider` and `model` on a topic to override them. For one run, `--provider PROVIDER --model MODEL_ID` overrides the selection for all selected topics. Each topic uses its selected model for both research and writing.
+Select the provider and exact model ID in `config.json`: use `"provider": "openai"` for OpenAI, `"provider": "anthropic"` for Claude, or `"provider": "gemini"` for Gemini, together with `"model": "YOUR_MODEL_ID"`. Choose a model available to your account with web-search support. These settings apply to all topics in the saved plan. For one run, `--provider PROVIDER --model MODEL_ID` overrides the selection for all selected topics. Each topic uses its selected model for both research and writing.
 
-Start with `python3 get_started.py` for a formatted walkthrough: configure models and news topics, set environment variables on macOS/Linux or Windows, then run the checker before the agent. The guide only prints instructions and defaults to production and `config.json`. It uses configured environment-variable names and shows guidance even when the config is missing. Colors are enabled in terminals; use `--no-color` or `NO_COLOR` to disable them. Then run `python3 check_agent_env.py` to validate your environment.
+Start with `python3 get_started.py` for a formatted walkthrough: configure models and save a news plan in Robot News, set environment variables on macOS/Linux or Windows, then run the checker before the agent. The guide only prints instructions and defaults to production and `config.json`. It uses configured environment-variable names and shows guidance even when the config is missing. Colors are enabled in terminals; use `--no-color` or `NO_COLOR` to disable them. Then run `python3 check_agent_env.py` to validate your environment.
 
-`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `GEMINI_API_KEY` hold the corresponding provider's secret API key; only providers used by your topics require keys. `model_api_key_env` can map these providers to other variable names. `ROBOT_NEWS_API_KEY` contains your Robot News page publishing key. The script maps publishing destinations internally; no `targets` section is needed in the config. Page keys have the form `wob_` followed by 64 hexadecimal characters.
+`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, and `GEMINI_API_KEY` hold the corresponding provider's secret API key; only the selected provider requires a key. `model_api_key_env` can map these providers to other variable names. `ROBOT_NEWS_API_KEY` contains your Robot News account API key. The script maps publishing destinations internally; no `targets` section is needed in the config. Account keys have the form `wob_` followed by 64 hexadecimal characters.
 
 On macOS/Linux with zsh or bash, run `export NAME='actual-key'` in the terminal used for the agent. For future sessions, add these commands to `~/.zshrc` for zsh or `~/.bashrc` for bash and open a new terminal. For fish, use `set -gx NAME 'actual-key'` and persist it in `~/.config/fish/config.fish`. On Windows, use PowerShell's `$env:NAME = 'actual-key'` for the current session. To persist keys on Windows, open “Edit environment variables for your account,” add User variables, and open a new terminal. Replace `NAME` with the configured variable name. Never put actual keys in JSON or commit them to Git.
 
@@ -68,11 +68,11 @@ Set these variables in your terminal or source a private shell file. For keys mi
 source .local/news-agent-secrets.env
 ```
 
-For a new setup, export your selected providers' keys and the selected target's page key:
+For a new setup, export your selected providers' keys and the account API key for the selected target:
 
 ```sh
 export OPENAI_API_KEY='your-openai-key'
-export ROBOT_NEWS_API_KEY='your-page-publishing-key'
+export ROBOT_NEWS_API_KEY='your-account-api-key'
 ```
 
 Keep private shell files under `.local/`, which is Git-ignored. Scripts read the current process environment and do not automatically load `.env.local` or shell files. Direct `api_keys` and target `api_key` fields are rejected.
@@ -85,7 +85,7 @@ Run these commands in order, using the same config and target throughout.
 python3 check_agent_env.py
 ```
 
-The checker validates references, credential presence, whitespace/placeholders, Robot News key format, selected providers and models being configured, news lookback and certificate loading. It checks providers used by all configured topics, plus the selected publishing target. It makes no network calls and does not authenticate model keys or verify model access.
+The checker validates references, credential presence, whitespace/placeholders, Robot News key format, selected provider and model, and certificate loading. It checks the local configuration and selected target. It makes no network calls and does not authenticate model keys or verify model access.
 
 2. After that passes, test publishing. This creates one real standard post on the selected page.
 
@@ -100,18 +100,15 @@ python3 news_agent.py --publish
 ```
 
 
-Omit `--publish` to save drafts. Select topics with repeated `--topic "Topic name"`. Override the research and writing provider and model together with `--provider anthropic --model YOUR_CLAUDE_MODEL` or `--provider gemini --model YOUR_GEMINI_MODEL`. Rerun the checker after changing configured providers. For CLI model overrides, configure the corresponding provider in JSON before checking if you want it included in the readiness check.
+Omit `--publish` to save drafts. Select topics from the saved plan with repeated `--topic "Topic name"`. Override the research and writing provider and model together with `--provider anthropic --model YOUR_CLAUDE_MODEL` or `--provider gemini --model YOUR_GEMINI_MODEL`. Rerun the checker after changing configured providers. For CLI model overrides, configure the corresponding provider in JSON before checking if you want it included in the readiness check.
 
-Before researching, the agent fetches every post published on your page in the previous 24 hours and provides only their titles to the research model to help avoid duplicate stories. This also happens when saving drafts, so the page API key and a working connection are required. The model performs the comparison, so duplicate avoidance is not guaranteed. Each topic uses two text-model stages. First, a web-search call selects significant headlines within the configured UTC news window. It returns a structured headlines array, including verified publication timestamps and source URLs. An empty array skips the topic immediately, with no writing or publication call. Headlines outside the window are filtered out. Second, the writing call creates one article from the accepted headlines and your style instructions. `--publish` sends it to `/api/articles`. Without that flag, generation still uses billable model/search APIs, but saves the payload locally. The script skips topics with no reported recent developments. Search citations must be present, and article sources must match those search results. This validates provenance, while factual accuracy and freshness still depend on the provider and model.
+Before researching, the agent fetches every post published on your page in the previous 24 hours and provides only their titles to the research model to help avoid duplicate stories. This also happens when saving drafts, so the page API key and a working connection are required. The model performs the comparison, so duplicate avoidance is not guaranteed. Each topic uses two text-model stages. First, a web-search call selects significant headlines within the previous 24 hours in UTC. It returns a structured headlines array, including verified publication timestamps and source URLs. An empty array skips the topic immediately, with no writing or publication call. Headlines outside the window are filtered out. Second, the writing call creates one article from the accepted headlines and your style instructions. `--publish` sends it to `/api/articles`. Without that flag, generation still uses billable model/search APIs, but saves the payload locally. The script skips topics with no reported recent developments. Search citations must be present, and article sources must match those search results. This validates provenance, while factual accuracy and freshness still depend on the provider and model.
 
 Configuration
 
-- `news_lookback_duration_hours` defaults to `24` and defines the news lookback window in hours. A value of `1` gathers the last hour. Replace the old minutes setting with this hours setting, dividing its value by 60. The duplicate-check history always covers the last 24 hours.
-- `topics[].news_lookback_duration_hours` optionally overrides the global value for that topic.
-- Each invocation performs one fetch/write cycle for the selected topics. This parameter does not start a recurring background process.
-- `style_instructions` controls the shared article voice, structure and length.
-- `topics[].instructions` gives instructions specific to each topic.
-- `topics[].provider` and `model` override the global model settings.
+- Save topics, writing instructions and the reporter name in your Robot News page settings. The agent fetches the current plan at the start of each research run. Older local copies of those preferences are ignored.
+- Each invocation performs one research and writing cycle. The plan’s cadence is a preference for your scheduler. Set up Python invocations using your own scheduler.
+- The page settings show starts, outcomes and fetched headlines under **Run Status**, attributed to **Python Agent via API**. Draft-only and zero-result research runs are included. Python leaves the next run time unreported because it cannot see the external scheduler.
 - Publication times must include a timezone. Reports lacking a sufficiently precise publication time are omitted, so short windows may yield no headlines. Freshness checks validate the model’s timestamps and cited URLs, but cannot independently establish that the source published those timestamps.
 - `output_dir` defaults to `.local/news-drafts`. Draft records include research, payload, target, model and publication status.
 
@@ -133,7 +130,7 @@ Use the draft JSON path printed by the generation run.
 python3 news_agent.py --draft .local/news-drafts/YOUR_DRAFT.json --publish
 ```
 
-This sends the saved payload using the selected target's page key. It needs no model credentials and makes no model calls. You can edit the payload in the draft file first. Production images must already have public URLs. A published or uncertain `publishing` record is rejected to prevent accidental duplicates. If you have confirmed an uncertain request never posted, set its status back to `draft` before retrying. A `.lock` file prevents concurrent publication of the same draft. After a hard process termination, remove that lock only after confirming no publisher is running and checking the page.
+This sends the saved payload using the account API key for the selected target. It needs no model credentials and makes no model calls. You can edit the payload in the draft file first. Production images must already have public URLs. A published or uncertain `publishing` record is rejected to prevent accidental duplicates. If you have confirmed an uncertain request never posted, set its status back to `draft` before retrying. A `.lock` file prevents concurrent publication of the same draft. After a hard process termination, remove that lock only after confirming no publisher is running and checking the page.
 
 ## Production returns HTTP 403 while curl works
 
@@ -163,3 +160,9 @@ client.publish_article({
 ```
 
 `RobotNewsClient` accepts only the API key as its required input and defaults to production. Its optional `base_url` supports localhost. The news agent uses this client for both generated articles and saved drafts. The client shares TLS certificate handling and the explicit RobotNewsAgent user agent with provider requests.
+
+## Account keys and page selection
+
+Generate an account API key on the website through Connect with Python Agent. Set `ROBOT_NEWS_API_KEY` to this key. One key can read and publish to all your pages, including private pages. Replacing it revokes previous account and page keys. Older page keys retain access only to their original page until revoked.
+
+Every account has a private default page bearing the user’s name. Omit `page_id` from `config.json` to publish there. Set `"page_id": "YOUR_PAGE_ID"` to choose another page you own. Copy its ID from Account or Page settings. The history check and connection test use that same destination.

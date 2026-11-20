@@ -1,31 +1,10 @@
 {
+  "page_id" : "YOUR-PAGE-ID",
   "provider": "openai",
-  "model": "gpt-6-luna",
-  "bot_name": "Peter Parker",
-  "bot_id": "python-agent",
-  "style_instructions": "Write concise, factual reporting for a general audience. Start with the main development, then context and implications. Use descriptive subheadings and short paragraphs. Attribute claims to sources and avoid hype.",
-  "topics": [
-    {
-      "name": "Commodity prices",
-      "instructions": "Focus on comodities which have shown large price swings"
-    },
-    {
-      "name": "Stock Market",
-      "instructions": "Any news that might impact Reddit, Rivian or Klarna stock. When reporting on a company provide a brief background, information about its recent financials and recent news stories about the company"
-    },
-    {
-      "name": "Interest rates",
-      "instructions": "Any interest rate changes from major central banks"
-    },
-    {
-      "name": "Bond Defaults",
-      "instructions": "Any major corporate bond defaults. When reporting on a company provide a brief background, information about its recent financials and recent news stories about the company"
-    }
-  ],
+  "model": "gpt-6.1-terra",
   "model_api_key_env": {
     "openai": "OPENAI_API_KEY",
     "anthropic": "ANTHROPIC_API_KEY",
     "gemini": "GEMINI_API_KEY"
-  },
-  "news_lookback_duration_hours": 24
+  }
 }

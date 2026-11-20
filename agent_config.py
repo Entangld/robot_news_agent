@@ -54,15 +54,5 @@ def target_settings(target_name):
     base = target_url(target_name)
     key = environment_value("ROBOT_NEWS_API_KEY")
     if not re.fullmatch(r"wob_[0-9a-fA-F]{64}", key):
-        raise ValueError("ROBOT_NEWS_API_KEY must contain a Robot News page publishing key")
+        raise ValueError("ROBOT_NEWS_API_KEY must contain a Robot News account API key")
     return base, key
-
-
-def lookback_duration_hours(config, topic=None):
-    if "news_lookback_duration_minutes" in config or "news_lookback_duration_minutes" in (topic or {}):
-        raise ValueError("Replace news_lookback_duration_minutes with news_lookback_duration_hours (divide minutes by 60)")
-    hours = (topic or {}).get("news_lookback_duration_hours",
-                              config.get("news_lookback_duration_hours", 24))
-    if isinstance(hours, bool) or not isinstance(hours, (int, float)) or not 0 < hours <= 8760:
-        raise ValueError("news_lookback_duration_hours must be positive and no more than 8760 hours (one year)")
-    return hours

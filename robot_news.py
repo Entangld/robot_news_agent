@@ -22,9 +22,9 @@ def tls_context():
     return context
 
 
-def request(url, payload, headers):
+def request(url, payload, headers, *, method=None):
     data = json.dumps(payload).encode() if payload is not None else None
-    req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json", "Accept": "application/json",
+    req = urllib.request.Request(url, data=data, method=method, headers={"Content-Type": "application/json", "Accept": "application/json",
                                                 "User-Agent": "RobotNewsAgent/1.0", **headers})
     try:
         with urllib.request.urlopen(req, timeout=240, context=tls_context()) as response:
@@ -45,20 +45,41 @@ def request(url, payload, headers):
 
 
 class RobotNewsClient:
-    def __init__(self, api_key, base_url=PRODUCTION_URL):
+    def __init__(self, api_key, base_url=PRODUCTION_URL, page_id=None):
         if not isinstance(api_key, str) or not api_key.strip():
             raise ValueError("Provide a Robot News page API key")
         parsed = urllib.parse.urlsplit(base_url)
         if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ValueError("Provide a valid Robot News base URL")
+        if page_id is not None and (not isinstance(page_id, str) or not page_id.strip()):
+            raise ValueError("page_id must be a non-empty page ID")
+        self.page_id = page_id
         self.api_key = api_key.strip()
         self.base_url = base_url.rstrip("/")
+
+    def news_plan(self):
+        query = "?" + urllib.parse.urlencode({"page_id": self.page_id}) if self.page_id else ""
+        result = request(self.base_url + "/api/news-plan" + query, None,
+                         {"Authorization": "Bearer " + self.api_key})
+        if not result.get("configured"):
+            raise ValueError("Save a news plan for the selected page in Robot News page settings.")
+        if not isinstance(result.get("config"), dict) or not result.get("plan_revision"):
+            raise RuntimeError("Robot News did not return a valid news plan and revision.")
+        return result
+
+    def report_run(self, page_id, payload, *, finish=False):
+        query = urllib.parse.urlencode({"page_id": page_id})
+        return request(self.base_url + "/api/news-plan/runs?" + query, payload,
+                       {"Authorization": "Bearer " + self.api_key},
+                       method="PATCH" if finish else "POST")
 
     def recent_headlines(self, since):
         """Return every post title created on or after the given UTC timestamp."""
         headlines, cursor, seen = [], None, set()
         while True:
             params = {"since": since, "limit": 100}
+            if self.page_id is not None:
+                params["page_id"] = self.page_id
             if cursor is not None:
                 params["cursor"] = cursor
             result = request(self.base_url + "/api/posts?" + urllib.parse.urlencode(params), None,
@@ -77,11 +98,11 @@ class RobotNewsClient:
             seen.add(cursor)
 
     def publish_post(self, payload):
-        return request(self.base_url + "/api/posts", payload,
+        return request(self.base_url + "/api/posts", {**payload, **({"page_id": self.page_id} if self.page_id is not None else {})},
                        {"Authorization": "Bearer " + self.api_key})
 
     def publish_article(self, payload):
-        return request(self.base_url + "/api/articles", payload,
+        return request(self.base_url + "/api/articles", {**payload, **({"page_id": self.page_id} if self.page_id is not None else {})},
                        {"Authorization": "Bearer " + self.api_key})
 
     def publish_standard_message(self):

@@ -13,9 +13,9 @@ def main():
     parser.add_argument("--target", choices=["localhost", "production"], default="production", help="Publishing target (default: production)")
     args = parser.parse_args()
     try:
-        load_config(args.config)
+        config = load_config(args.config)
         base, key = target_settings(args.target)
-        response = RobotNewsClient(key, base_url=base).publish_standard_message()
+        response = RobotNewsClient(key, base_url=base, page_id=config.get("page_id")).publish_standard_message()
     except (ValueError, KeyError, TypeError, RuntimeError, OSError) as exc:
         print(f"Connection test failed: {exc}", file=sys.stderr)
         return 1

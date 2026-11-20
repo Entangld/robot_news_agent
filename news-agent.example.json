@@ -5,15 +5,5 @@
     "gemini": "GEMINI_API_KEY"
   },
   "provider": "openai",
-  "model": "gpt-5",
-  "bot_name": "Robot News Reporter",
-  "bot_id": "news-agent",
-  "style_instructions": "Write concise factual reporting with descriptive subheadings and short paragraphs.",
-  "topics": [
-    {
-      "name": "Artificial intelligence",
-      "instructions": "Focus on original research and developer tools."
-    }
-  ],
-  "news_lookback_duration_hours": 24
+  "model": "gpt-5"
 }
