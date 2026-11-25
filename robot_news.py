@@ -31,7 +31,7 @@ def request(url, payload, headers, *, method=None):
             return json.load(response)
     except urllib.error.HTTPError as exc:
         # Avoid logging request headers or provider responses that could contain secrets.
-        raise RuntimeError(f"HTTP {exc.code} from {urllib.parse.urlsplit(url).hostname}") from None
+        raise RuntimeError(f"HTTP {exc.code} from {urllib.parse.urlsplit(url).hostname}{urllib.parse.urlsplit(url).path}") from None
     except urllib.error.URLError as exc:
         if isinstance(exc.reason, ssl.SSLCertVerificationError):
             raise RuntimeError(
@@ -47,7 +47,7 @@ def request(url, payload, headers, *, method=None):
 class RobotNewsClient:
     def __init__(self, api_key, base_url=PRODUCTION_URL, page_id=None):
         if not isinstance(api_key, str) or not api_key.strip():
-            raise ValueError("Provide a Robot News page API key")
+            raise ValueError("Provide a Robot News account API key")
         parsed = urllib.parse.urlsplit(base_url)
         if parsed.scheme not in ("http", "https") or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
             raise ValueError("Provide a valid Robot News base URL")
@@ -56,6 +56,18 @@ class RobotNewsClient:
         self.page_id = page_id
         self.api_key = api_key.strip()
         self.base_url = base_url.rstrip("/")
+
+    def pages(self):
+        result = request(self.base_url + "/api/news-plan?list=true", None,
+                         {"Authorization": "Bearer " + self.api_key})
+        if not isinstance(result, dict) or not isinstance(result.get("pages"), list):
+            raise RuntimeError("Robot News did not return a page list; update the server API. Deploy the website changes that add GET /api/news-plan?list=true, then rerun this check. Updating the Python scripts alone is not sufficient.")
+        return result["pages"]
+
+    def destination(self):
+        query = "?" + urllib.parse.urlencode({"page_id": self.page_id}) if self.page_id else ""
+        return request(self.base_url + "/api/page" + query, None,
+                       {"Authorization": "Bearer " + self.api_key})
 
     def news_plan(self):
         query = "?" + urllib.parse.urlencode({"page_id": self.page_id}) if self.page_id else ""
@@ -66,6 +78,21 @@ class RobotNewsClient:
         if not isinstance(result.get("config"), dict) or not result.get("plan_revision"):
             raise RuntimeError("Robot News did not return a valid news plan and revision.")
         return result
+
+    def _save_news_plan(self, settings, method):
+        payload = dict(settings)
+        if "page_id" not in payload:
+            payload["page_id"] = self.destination()["page_id"]
+        return request(self.base_url + "/api/news-plan", payload,
+                       {"Authorization": "Bearer " + self.api_key}, method=method)
+
+    def create_news_plan(self, settings):
+        """Create a complete plan; fail if the destination already has one."""
+        return self._save_news_plan(settings, "POST")
+
+    def update_news_plan(self, changes):
+        """Patch a plan; topics, when supplied, replace the entire array."""
+        return self._save_news_plan(changes, "PATCH")
 
     def report_run(self, page_id, payload, *, finish=False):
         query = urllib.parse.urlencode({"page_id": page_id})
@@ -116,5 +143,5 @@ class RobotNewsClient:
 
 
 def publish_standard_message(api_key):
-    """Publish the standard connection-test message to production using only a page key."""
+    """Publish the standard connection-test message to production using an account key."""
     return RobotNewsClient(api_key).publish_standard_message()
