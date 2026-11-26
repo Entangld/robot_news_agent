@@ -44,6 +44,10 @@ def request(url, payload, headers, *, method=None):
 
 
 
+class MissingNewsPlan(ValueError):
+    """The selected page exists but has no saved news plan."""
+
+
 class RobotNewsClient:
     def __init__(self, api_key, base_url=PRODUCTION_URL, page_id=None):
         if not isinstance(api_key, str) or not api_key.strip():
@@ -74,7 +78,7 @@ class RobotNewsClient:
         result = request(self.base_url + "/api/news-plan" + query, None,
                          {"Authorization": "Bearer " + self.api_key})
         if not result.get("configured"):
-            raise ValueError("Save a news plan for the selected page in Robot News page settings.")
+            raise MissingNewsPlan("Save a news plan for the selected page in Robot News page settings.")
         if not isinstance(result.get("config"), dict) or not result.get("plan_revision"):
             raise RuntimeError("Robot News did not return a valid news plan and revision.")
         return result

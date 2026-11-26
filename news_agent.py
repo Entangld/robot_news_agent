@@ -1,16 +1,20 @@
 #!/usr/bin/env python3
-"""Research topics, draft Robot News articles, and publish."""
+"""Research news, draft and publish articles, or display and update saved news plans."""
 import argparse
 import datetime as dt
 import json
 import os
 import re
+import shutil
+import shlex
+import textwrap
 import sys
 import urllib.parse
 import uuid
 from pathlib import Path
 
-from robot_news import RobotNewsClient, request
+from robot_news import MissingNewsPlan, RobotNewsClient, request
+from console_output import page_table, styled
 from agent_config import DEFAULT_CONFIG, load_config, model_key, target_settings
 
 
@@ -319,7 +323,127 @@ Do not include imageUrl, Markdown fences or HTML. Use plain text paragraphs.
         print(f"{record['status']}: {draft}")
 
 
-if __name__ == "__main__":
+
+def plan_table(plan, color=False):
+    """Render long instructions and topics without losing text or table alignment."""
+    config = plan["config"]
+    rows = [
+        ("Page ID", config["page_id"]),
+        ("Reporter", config["bot_name"]),
+        ("Every (minutes)", str(config["frequency_minutes"])),
+        ("Timezone", config["timezone"]),
+        ("Writing style", config["style_instructions"] or "(none)"),
+    ]
+    for index, topic in enumerate(config["topics"], 1):
+        rows.extend([(f"Topic {index}", topic["name"]),
+                     (f"Instructions {index}", topic["instructions"] or "(none)")])
+    label_width = max(len(label) for label, _ in rows)
+    value_width = max(24, min(88, shutil.get_terminal_size().columns - label_width - 7))
+    border = "+-" + "-" * label_width + "-+-" + "-" * value_width + "-+"
+    print(styled("\nCurrent news plan", "1;36", color))
+    print(border)
+    print("| " + styled("Setting".ljust(label_width), "1;36", color) + " | " +
+          styled("Value".ljust(value_width), "1;36", color) + " |")
+    print(border)
+    for label, value in rows:
+        lines = []
+        for paragraph in str(value).splitlines() or [""]:
+            lines.extend(textwrap.wrap(paragraph, width=value_width) or [""])
+        for index, line in enumerate(lines):
+            print("| " + styled((label if index == 0 else "").ljust(label_width), "36", color) +
+                  " | " + line.ljust(value_width) + " |")
+        print(border)
+    print("Saving a plan does not update the external scheduler.")
+
+
+def missing_plan_help(config, target_name, *, config_path=DEFAULT_CONFIG, color=False):
+    base, key = target_settings(target_name)
+    client = RobotNewsClient(key, base_url=base, page_id=config.get("page_id"))
+    destination = client.destination()
+    page_id = destination["page_id"]
+    print(styled(f"\nNo news plan configured for {destination['name']} ({page_id}).", "1;31", color))
+    try:
+        page_table(client.pages(), page_id, color, highlight_missing=True)
+    except (ValueError, KeyError, TypeError, RuntimeError, OSError) as exc:
+        print(styled(f"Could not list owned pages: {exc}", "33", color))
+    print(styled("\n1. Configure on the website", "1;36", color))
+    settings_url = base.rstrip("/") + "/pages/" + urllib.parse.quote(destination["public_id"], safe="") + "/settings"
+    print(f"   {settings_url}")
+    print("   Sign in as the page owner, fill in News plan, and save.")
+    print(styled("\n2. Configure from Python", "1;36", color))
+    print("   Save the following settings as news-plan.json and edit them:")
+    template = {"page_id": page_id, "bot_name": "News Reporter",
+                "style_instructions": "Write concise, sourced news updates.",
+                "topics": [{"name": "Technology", "instructions": "Focus on significant developments."}],
+                "frequency_minutes": 1440, "timezone": "UTC"}
+    print(textwrap.indent(json.dumps(template, indent=2, ensure_ascii=False), "   "))
+    options = ""
+    if Path(config_path).resolve() != Path(DEFAULT_CONFIG).resolve():
+        options += " --config " + shlex.quote(str(config_path))
+    if target_name != "production":
+        options += " --target " + target_name
+    print("\n   Create and display the plan (requires ROBOT_NEWS_API_KEY):")
+    print(styled("   python news_agent.py --create-plan news-plan.json --show-plan" + options, "1;32", color))
+    print("\n   To edit an existing plan later, use --update-plan-from-json news-plan.json.")
+    print("   Saving a plan does not start recurring runs; configure your scheduler separately.")
+
+
+def unique_plan_fields(pairs):
+    """Reject duplicate keys instead of silently discarding earlier settings."""
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError(f"Duplicate JSON key {key!r} in news-plan settings. "
+                             "Each topic must be a separate object in the topics array, "
+                             'for example: [{"name": "Space", "instructions": "..."}, '
+                             '{"name": "Life", "instructions": "..."}]. No update sent.')
+        result[key] = value
+    return result
+
+
+def manage_plan(config, target_name, *, show=False, export_path=None, update_path=None, create_path=None, color=False):
+    """Manage the selected page's plan without requiring model credentials."""
+    base, key = target_settings(target_name)
+    client = RobotNewsClient(key, base_url=base, page_id=config.get("page_id"))
+    destination = client.destination()
+    page_id = destination["page_id"]
+    client.page_id = page_id
+    if export_path and Path(export_path).exists():
+        raise ValueError(f"Export file already exists: {export_path}. Choose a new path.")
+    settings_path = create_path or update_path
+    if settings_path:
+        changes = json.loads(Path(settings_path).read_text(encoding="utf-8"), object_pairs_hook=unique_plan_fields)
+        if not isinstance(changes, dict):
+            raise ValueError("The news-plan JSON file must contain an object of plan settings.")
+        unknown = changes.keys() - {"page_id", "bot_name", "style_instructions", "topics", "frequency_minutes", "timezone"}
+        if unknown:
+            raise ValueError("Unknown news-plan fields: " + ", ".join(sorted(unknown)) +
+                             ". Submit the plan settings object, not the full API response.")
+        if "page_id" in changes and changes["page_id"] != page_id:
+            raise ValueError("The JSON page_id does not match the selected page. "
+                             "Select that page in your agent config, or correct the JSON page_id. No update sent.")
+        if not any(field != "page_id" for field in changes):
+            raise ValueError("Include at least one plan setting to update besides page_id.")
+        changes["page_id"] = page_id
+        if create_path:
+            client.create_news_plan(changes)
+        else:
+            client.update_news_plan(changes)
+        action = "created" if create_path else "updated"
+        print(styled(f"OK: News plan {action} for {destination['name']} ({page_id}).", "32", color))
+        print("Cadence or timezone changes must also be applied in your external scheduler.")
+    if show or export_path:
+        plan = client.news_plan()
+        if show:
+            plan_table(plan, color)
+        if export_path:
+            # Avoid overwriting an edited plan or another existing file.
+            with Path(export_path).open("x", encoding="utf-8") as output:
+                output.write(json.dumps(plan["config"], indent=2, ensure_ascii=False) + "\n")
+            print(styled(f"OK: Exported news plan to {export_path}. Edit this JSON, then use --update-plan-from-json.", "32", color))
+
+
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", default=DEFAULT_CONFIG, help="Agent config file (default: config.json beside this script)")
     parser.add_argument("--target", choices=["localhost", "production"], default="production", help="Publishing target (default: production)")
@@ -328,11 +452,40 @@ if __name__ == "__main__":
     parser.add_argument("--provider", choices=["openai", "anthropic", "gemini"])
     parser.add_argument("--model", help="Override model ID; pair with --provider when switching providers")
     parser.add_argument("--publish", action="store_true", help="Post saved drafts to Robot News")
-    args = parser.parse_args()
+    parser.add_argument("--show-plan", action="store_true", help="Fetch and display the selected page's news plan")
+    parser.add_argument("--export-plan-to-json", metavar="PATH", help="Fetch the selected page's plan into an editable JSON file (new file only)")
+    writes = parser.add_mutually_exclusive_group()
+    writes.add_argument("--create-plan", metavar="PATH", help="Create a new news plan from a complete JSON settings file")
+    writes.add_argument("--update-plan-from-json", metavar="PATH", help="Submit JSON settings to update the selected page's existing plan")
+    parser.add_argument("--no-color", action="store_true", help="Disable terminal colors")
+    args = parser.parse_args(argv)
+    plan_mode = args.show_plan or args.export_plan_to_json or args.update_plan_from_json or args.create_plan
+    if plan_mode and (args.publish or args.draft or args.topic or args.provider or args.model):
+        parser.error("Plan options cannot be combined with --publish, --draft, --topic, --provider or --model")
+    stdout_color = not args.no_color and "NO_COLOR" not in os.environ and sys.stdout.isatty()
+    stderr_color = not args.no_color and "NO_COLOR" not in os.environ and sys.stderr.isatty()
     try:
         if bool(args.provider) != bool(args.model):
             raise ValueError("Supply --provider and --model together")
-        run(args)
-    except (ValueError, KeyError, OSError, RuntimeError) as exc:
-        print(f"Error: {exc}", file=sys.stderr)
-        sys.exit(1)
+        if plan_mode:
+            manage_plan(load_config(args.config), args.target, show=args.show_plan,
+                        export_path=args.export_plan_to_json, update_path=args.update_plan_from_json, create_path=args.create_plan, color=stdout_color)
+        else:
+            run(args)
+        return 0
+    except MissingNewsPlan:
+        try:
+            missing_plan_help(load_config(args.config), args.target, config_path=args.config, color=stdout_color)
+        except (ValueError, KeyError, TypeError, OSError, RuntimeError) as exc:
+            print(styled(f"Could not load plan setup instructions: {exc}", "1;31", stderr_color), file=sys.stderr)
+        return 1
+    except (ValueError, KeyError, TypeError, OSError, RuntimeError) as exc:
+        sys.stdout.flush()
+        message = textwrap.fill(f"Error: {exc}", width=max(60, min(100, shutil.get_terminal_size().columns)),
+                                subsequent_indent="       ")
+        print(styled(message, "1;31", stderr_color), file=sys.stderr)
+        return 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

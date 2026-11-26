@@ -202,3 +202,43 @@ client.update_news_plan({"style_instructions": "Use short paragraphs."})
 Creation fails if a plan already exists; updates fail if none exists. Both methods accept an explicit full UUID `page_id` in the settings dictionary. Otherwise they resolve the client’s selected page (or default page) through `/api/page` before saving. An explicit dictionary `page_id` takes precedence over the client selection. These methods require deploying the website’s API-key write support.
 
 The environment checker displays owned pages in an aligned table and marks the publishing destination with `*`. Terminal colors show errors in red, successful checks in green, and missing or inactive settings in yellow. Use `python check_agent_env.py --no-color` or set `NO_COLOR` to disable colors; redirected output is plain text.
+
+## Display and edit a saved news plan
+
+Use the page selected by `page_id` in your agent config, or your default page when omitted. These commands only require `ROBOT_NEWS_API_KEY`, without model credentials or model calls. They support the `--config`, `--target` and `--no-color` options. Plan options cannot be combined with research, draft publication, topic or model options.
+
+Display the current plan as a colored table, including reporter, writing instructions, timing and each topic:
+
+```sh
+python news_agent.py --show-plan
+```
+
+Export the plan settings to a new JSON file, then edit that file in your preferred editor:
+
+```sh
+python news_agent.py --show-plan --export-plan-to-json news-plan.json
+```
+
+Existing files are never overwritten. The export contains only editable plan settings, including the selected page's full UUID. Long instructions wrap in the display; the JSON retains their complete text. Colors are automatic in a terminal and disabled for redirected output or `NO_COLOR`.
+
+Submit your edited JSON and display the freshly fetched plan:
+
+```sh
+python news_agent.py --update-plan-from-json news-plan.json --show-plan
+```
+
+`--update-plan-from-json` immediately sends one PATCH request to the existing plan; it does not publish articles or create a plan. You can submit the complete exported settings or a partial object such as `{"style_instructions": "Use short paragraphs."}`. Omitted fields are preserved; `topics`, if included, replaces the entire array. An included `page_id` must match the selected page's full UUID; if omitted, the agent supplies it. Invalid JSON, unknown fields and a mismatched page ID are rejected before submission. The server validates field values and ownership. An unsuccessful or uncertain update is not retried automatically; use `--show-plan` to inspect the saved state before retrying.
+
+Changing `frequency_minutes` or `timezone` updates the saved preference only. Apply those changes separately in your external scheduler. Production updates require the website deployment supporting account-key plan writes.
+
+### When the selected page has no plan
+
+`news_agent.py` displays the owned-pages table, highlights the selected page’s missing plan in red, and offers two setup options: a direct page-settings link, or a complete JSON template to edit and submit from Python. Displaying this guidance does not save settings or start research.
+
+Save the template as `news-plan.json`, edit the reporter, topics, style, cadence and timezone, then create the plan:
+
+```sh
+python news_agent.py --create-plan news-plan.json --show-plan
+```
+
+Use the same `--config` and `--target` as your original command. `--create-plan` requires all plan fields and fails if a plan already exists; use `--update-plan-from-json` for an existing plan. These two write options cannot be combined. A JSON page ID must match the selected page. Creation uses only the Robot News account key and does not schedule recurring runs.

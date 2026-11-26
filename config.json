@@ -1,5 +1,4 @@
 {
-  "page_id" : "YOUR-PAGE-ID",
   "provider": "openai",
   "model": "gpt-6.1-terra",
   "model_api_key_env": {
